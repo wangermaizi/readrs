@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReadRS - Markdown编辑器原型</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .toolbar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .toolbar-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .toolbar-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .view-mode-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .view-mode-btn {
+            padding: 6px 12px;
+            border: 1px solid #bdc3c7;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .view-mode-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tab-header {
+            display: flex;
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #e9ecef;
+            border: none;
+            font-size: 14px;
+        }
+        
+        .tab-button.active {
+            background-color: white;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .file-item, .outline-item {
+            padding: 8px 0;
+            cursor: pointer;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item:hover, .outline-item:hover {
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .file-name {
+            flex: 1;
+        }
+        
+        .file-icon {
+            margin-right: 8px;
+            color: #7f8c8d;
+        }
+        
+        .outline-level-1 {
+            font-weight: bold;
+            margin-left: 0;
+        }
+        
+        .outline-level-2 {
+            font-weight: normal;
+            margin-left: 15px;
+            font-size: 14px;
+        }
+        
+        .outline-level-3 {
+            font-weight: normal;
+            margin-left: 30px;
+            font-size: 13px;
+        }
+        
+        .editor-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .editor-pane, .preview-pane {
+            width: 50%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .editor-pane {
+            border-right: 1px solid #dee2e6;
+            background-color: #fcfcfc;
+        }
+        
+        .preview-pane {
+            background-color: white;
+        }
+        
+        .pane-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #6c757d;
+        }
+        
+        .editor-content {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: calc(100% - 30px);
+            overflow: auto;
+        }
+        
+        .preview-content {
+            font-size: 16px;
+            line-height: 1.6;
+            height: calc(100% - 30px);
+            overflow: auto;
+        }
+        
+        .preview-content h1 {
+            font-size: 2em;
+            margin: 0.67em 0;
+            color: #2c3e50;
+        }
+        
+        .preview-content h2 {
+            font-size: 1.5em;
+            margin: 0.83em 0;
+            color: #34495e;
+        }
+        
+        .preview-content h3 {
+            font-size: 1.17em;
+            margin: 1em 0;
+            color: #5d6d7e;
+        }
+        
+        .preview-content p {
+            margin: 1em 0;
+        }
+        
+        .preview-content code {
+            background-color: #f1f2f6;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        .preview-content pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+        
+        .preview-content blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #7f8c8d;
+        }
+        
+        .preview-content ul, .preview-content ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        .preview-content li {
+            margin: 5px 0;
+        }
+        
+        .preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .preview-content table, .preview-content th, .preview-content td {
+            border: 1px solid #bdc3c7;
+        }
+        
+        .preview-content th, .preview-content td {
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .preview-content th {
+            background-color: #ecf0f1;
+        }
+        
+        .search-panel {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .search-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .status-bar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 8px 20px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="toolbar">
+            <div class="toolbar-title">ReadRS - Markdown Editor</div>
+            <div class="toolbar-buttons">
+                <button class="btn btn-primary" onclick="alert('新建文档')">New</button>
+                <button class="btn btn-primary" onclick="alert('打开文档')">Open</button>
+                <button class="btn btn-primary" onclick="alert('保存文档')">Save</button>
+                <button class="btn btn-primary" onclick="alert('导出文档')">Export</button>
+                <button class="btn btn-secondary" onclick="toggleTheme()">Toggle Theme</button>
+                <button class="btn btn-secondary" onclick="toggleSearch()">Search</button>
+                <div class="view-mode-buttons">
+                    <button class="view-mode-btn active" onclick="switchViewMode('preview')">阅读模式</button>
+                    <button class="view-mode-btn" onclick="switchViewMode('edit')">编辑模式</button>
+                    <button class="view-mode-btn" onclick="switchViewMode('dual')">所见即所得</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="tab-header">
+                    <button class="tab-button active" onclick="switchTab('files')">文件</button>
+                    <button class="tab-button" onclick="switchTab('outline')">大纲</button>
+                </div>
+                
+                <div id="files-tab" class="tab-content active">
+                    <div class="tab-title">最近打开</div>
+                    <div class="file-item" onclick="openFile('readme.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">readme.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('guide.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">guide.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('notes.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">notes.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('blog_post.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">blog_post.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('documentation.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">documentation.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('tutorial.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">tutorial.md</span>
+                    </div>
+                    <div class="file-item" onclick="openFile('spec.md')">
+                        <span class="file-icon">📄</span>
+                        <span class="file-name">spec.md</span>
+                    </div>
+                </div>
+                
+                <div id="outline-tab" class="tab-content">
+                    <div class="tab-title">大纲视图</div>
+                    <div class="outline-item outline-level-1" onclick="scrollToHeading(0)">ReadRS Markdown编辑器</div>
+                    <div class="outline-item outline-level-2" onclick="scrollToHeading(1)">核心功能</div>
+                    <div class="outline-item outline-level-3" onclick="scrollToHeading(2)">实时预览</div>
+                    <div class="outline-item outline-level-3" onclick="scrollToHeading(3)">文件管理</div>
+                    <div class="outline-item outline-level-2" onclick="scrollToHeading(4)">特色功能</div>
+                    <div class="outline-item outline-level-3" onclick="scrollToHeading(5)">多格式导出</div>
+                    <div class="outline-item outline-level-3" onclick="scrollToHeading(6)">主题定制</div>
+                    <div class="outline-item outline-level-1" onclick="scrollToHeading(7)">使用指南</div>
+                    <div class="outline-item outline-level-2" onclick="scrollToHeading(8)">基本语法</div>
+                    <div class="outline-item outline-level-2" onclick="scrollToHeading(9)">高级功能</div>
+                </div>
+            </div>
+            
+            <div class="editor-container">
+                <div id="editor-pane" class="editor-pane">
+                    <div class="pane-title">编辑器</div>
+                    <div class="editor-content"># ReadRS Markdown编辑器
+
+ReadRS是一款基于Rust GPUI框架的现代化Markdown编辑器。
+
+## 核心功能
+
+- **实时预览**：所见即所得的编辑体验
+- *简洁界面*：专注于内容创作
+- `代码高亮`：支持多种编程语言
+
+### 特色功能
+
+1. 文件管理功能
+2. 多格式导出
+3. 主题定制
+4. 大纲视图
+
+> "优秀的工具能让创作变得更简单"
+
+---
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 编辑 | ✅ | 支持所有Markdown语法 |
+| 预览 | ✅ | 实时渲染 |
+| 导出 | ✅ | HTML/PDF/Word格式 |
+
+```rust
+// 示例代码块
+fn main() {
+    println!("Hello, ReadRS!");
+}
+```
+
+## 快捷键
+
+- `Ctrl+N` - 新建文档
+- `Ctrl+O` - 打开文档
+- `Ctrl+S` - 保存文档
+- `Ctrl+E` - 导出文档
+- `Ctrl+T` - 切换主题
+- `Ctrl+F` - 搜索
+
+## 特殊功能
+
+- 支持LaTeX数学公式 $E=mc^2$
+- 支持Mermaid图表语法
+- 支持任务列表
+- 支持脚注[^1]
+
+[^1]: 这是一个脚注示例</div>
+                </div>
+                
+                <div id="preview-pane" class="preview-pane">
+                    <div class="pane-title">预览</div>
+                    <div class="preview-content">
+                        <h1>ReadRS Markdown编辑器</h1>
+                        <p>ReadRS是一款基于Rust GPUI框架的现代化Markdown编辑器。</p>
+                        <h2>核心功能</h2>
+                        <ul>
+                            <li><strong>实时预览</strong>：所见即所得的编辑体验</li>
+                            <li><em>简洁界面</em>：专注于内容创作</li>
+                            <li><code>代码高亮</code>：支持多种编程语言</li>
+                        </ul>
+                        <h3>特色功能</h3>
+                        <ol>
+                            <li>文件管理功能</li>
+                            <li>多格式导出</li>
+                            <li>主题定制</li>
+                            <li>大纲视图</li>
+                        </ol>
+                        <blockquote>"优秀的工具能让创作变得更简单"</blockquote>
+                        <hr>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>功能</th>
+                                    <th>状态</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>编辑</td>
+                                    <td>✅</td>
+                                    <td>支持所有Markdown语法</td>
+                                </tr>
+                                <tr>
+                                    <td>预览</td>
+                                    <td>✅</td>
+                                    <td>实时渲染</td>
+                                </tr>
+                                <tr>
+                                    <td>导出</td>
+                                    <td>✅</td>
+                                    <td>HTML/PDF/Word格式</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <pre><code class="language-rust">// 示例代码块
+fn main() {
+    println!("Hello, ReadRS!");
+}</code></pre>
+                        <h2>快捷键</h2>
+                        <ul>
+                            <li><code>Ctrl+N</code> - 新建文档</li>
+                            <li><code>Ctrl+O</code> - 打开文档</li>
+                            <li><code>Ctrl+S</code> - 保存文档</li>
+                            <li><code>Ctrl+E</code> - 导出文档</li>
+                            <li><code>Ctrl+T</code> - 切换主题</li>
+                            <li><code>Ctrl+F</code> - 搜索</li>
+                        </ul>
+                        <h2>特殊功能</h2>
+                        <ul>
+                            <li>支持LaTeX数学公式 $E=mc^2$</li>
+                            <li>支持Mermaid图表语法</li>
+                            <li>支持任务列表</li>
+                            <li>支持脚注<sup><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><a href="#fnref1" class="reversefootnote" role="doc-backlink">↩</a></a></sup></li>
+                        </ul>
+                        <div class="footnotes" role="doc-endnotes">
+                            <hr>
+                            <ol>
+                                <li id="fn1" role="doc-endnote">
+                                    <p>这是一个脚注示例 <a href="#fnref1" class="reversefootnote" role="doc-backlink">↩</a></p>
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div>ReadRS v0.1.0</div>
+            <div>字符数: 1,248 | 行数: 42</div>
+        </div>
+        
+        <div class="search-panel" id="searchPanel">
+            <input type="text" class="search-input" placeholder="输入搜索关键词...">
+            <div class="search-actions">
+                <button class="btn btn-secondary">上一个</button>
+                <button class="btn btn-secondary">下一个</button>
+                <button class="btn btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            if (body.style.backgroundColor === 'rgb(52, 58, 64)') {
+                body.style.backgroundColor = '#f5f5f5';
+                document.querySelector('.app-container').style.backgroundColor = 'white';
+            } else {
+                body.style.backgroundColor = '#343a40';
+                document.querySelector('.app-container').style.backgroundColor = '#212529';
+            }
+        }
+        
+        function toggleSearch() {
+            const panel = document.getElementById('searchPanel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+        
+        function switchTab(tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有标签按钮的活动状态
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示选中的标签内容
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // 设置选中的标签按钮为活动状态
+            event.target.classList.add('active');
+        }
+        
+        function switchViewMode(mode) {
+            const editorPane = document.getElementById('editor-pane');
+            const previewPane = document.getElementById('preview-pane');
+            
+            // 移除所有按钮的活动状态
+            document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 设置选中的按钮为活动状态
+            event.target.classList.add('active');
+            
+            // 根据模式调整显示
+            if (mode === 'preview') {
+                // 阅读模式：只显示预览区
+                editorPane.style.display = 'none';
+                previewPane.style.display = 'block';
+                previewPane.style.width = '100%';
+            } else if (mode === 'edit') {
+                // 编辑模式：只显示编辑区
+                editorPane.style.display = 'block';
+                previewPane.style.display = 'none';
+                editorPane.style.width = '100%';
+            } else {
+                // 所见即所得模式：两个区域都显示
+                editorPane.style.display = 'block';
+                previewPane.style.display = 'block';
+                editorPane.style.width = '50%';
+                previewPane.style.width = '50%';
+                editorPane.style.borderRight = '1px solid #dee2e6';
+            }
+        }
+        
+        function openFile(fileName) {
+            alert('打开文件: ' + fileName);
+        }
+        
+        function scrollToHeading(index) {
+            alert('跳转到标题: ' + index);
+        }
+    </script>
+</body>
+</html>
