@@ -18,7 +18,7 @@ ReadRS 是一款使用 Rust 和 GPUI 框架开发的现代化 Markdown 编辑器
 目前项目仍在开发中，可通过以下方式构建：
 
 ```bash
-git clone https://github.com/your-username/readrs.git
+git clone https://github.com/wangermaizi/readrs.git
 cd readrs
 cargo run
 ```
