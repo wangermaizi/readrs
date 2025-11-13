@@ -1,7 +1,6 @@
 // src/renderer.rs
 use gpui::*;
-use pulldown_cmark::{Parser, Options, Event, Tag, CodeBlockKind};
-use std::sync::Arc;
+use pulldown_cmark::{Parser, Options, Event, Tag, TagEnd, CodeBlockKind, HeadingLevel};
 
 pub struct MarkdownRenderer {
     content: SharedString,
@@ -23,105 +22,98 @@ impl MarkdownRenderer {
         let parser = Parser::new_ext(self.content.as_ref(), options);
         let mut elements = Vec::new();
         let mut current_text = String::new();
-        let mut in_paragraph = false;
-        let mut in_heading = false;
-        let mut in_list = false;
-        let mut in_blockquote = false;
         let mut in_code_block = false;
         let mut code_block_content = String::new();
-        let mut list_level = 0;
+        let mut code_block_lang: Option<String> = None;
+        let mut current_heading_level: Option<HeadingLevel> = None;
 
         for event in parser {
             match event {
                 Event::Start(tag) => {
-                    // 保存当前文本
-                    if !current_text.is_empty() {
-                        elements.push(self.create_text_element(&current_text));
+                    if !current_text.is_empty() && !in_code_block {
+                        if current_heading_level.is_none() {
+                            elements.push(self.create_text_element(&current_text));
+                        }
                         current_text.clear();
                     }
 
                     match tag {
                         Tag::Paragraph => {
-                            in_paragraph = true;
-                            // 段落开始，稍后添加
+                            // 段落开始，稍后处理
                         }
-                        Tag::Heading(level, _, _) => {
-                            in_heading = true;
-                            // 标题处理
-                            let heading_text = self.extract_next_text(&mut parser.clone());
-                            if !heading_text.is_empty() {
-                                elements.push(self.create_heading_element(&heading_text, level));
-                            }
+                        Tag::Heading { level, .. } => {
+                            current_heading_level = Some(level);
                         }
                         Tag::List(_) => {
-                            in_list = true;
-                            list_level += 1;
+                            // 列表开始
                         }
                         Tag::Item => {
                             // 列表项开始
                         }
-                        Tag::BlockQuote => {
-                            in_blockquote = true;
+                        Tag::BlockQuote(_) => {
+                            // 引用块开始
                         }
                         Tag::CodeBlock(kind) => {
                             in_code_block = true;
                             code_block_content.clear();
                             match kind {
                                 CodeBlockKind::Fenced(lang) => {
-                                    // 代码块语言类型
+                                    code_block_lang = Some(lang.to_string());
                                 }
                                 CodeBlockKind::Indented => {
-                                    // 缩进代码块
+                                    code_block_lang = None;
                                 }
                             }
                         }
                         Tag::Emphasis => {
-                            // 斜体
+                            // 斜体开始
                         }
                         Tag::Strong => {
-                            // 粗体
+                            // 粗体开始
                         }
                         Tag::Strikethrough => {
-                            // 删除线
+                            // 删除线开始
                         }
-                        Tag::Link(_, _, _) => {
-                            // 链接
+                        Tag::Link { .. } => {
+                            // 链接开始
                         }
-                        Tag::Image(_, _, _) => {
-                            // 图片
+                        Tag::Image { .. } => {
+                            // 图片开始
                         }
                         _ => {}
                     }
                 }
-                Event::End(tag) => {
-                    match tag {
-                        Tag::Paragraph => {
+                Event::End(tag_end) => {
+                    match tag_end {
+                        TagEnd::Paragraph => {
                             if !current_text.is_empty() {
                                 elements.push(self.create_paragraph_element(&current_text));
                                 current_text.clear();
                             }
-                            in_paragraph = false;
                         }
-                        Tag::Heading(_, _, _) => {
-                            in_heading = false;
+                        TagEnd::Heading(level) => {
+                            if !current_text.is_empty() {
+                                elements.push(self.create_heading_element(&current_text, level));
+                                current_text.clear();
+                            }
+                            current_heading_level = None;
                         }
-                        Tag::List(_) => {
-                            in_list = false;
-                            list_level -= 1;
+                        TagEnd::List(_) => {
+                            // 列表结束
                         }
-                        Tag::CodeBlock(_) => {
+                        TagEnd::CodeBlock => {
                             if !code_block_content.is_empty() {
-                                elements.push(self.create_code_block_element(&code_block_content));
+                                elements.push(self.create_code_block_element(&code_block_content, code_block_lang.as_deref()));
                                 code_block_content.clear();
+                                code_block_lang = None;
                             }
                             in_code_block = false;
                         }
-                        Tag::BlockQuote => {
+                        TagEnd::BlockQuote => {
                             if !current_text.is_empty() {
                                 elements.push(self.create_blockquote_element(&current_text));
                                 current_text.clear();
                             }
-                            in_blockquote = false;
                         }
                         _ => {}
                     }
@@ -134,15 +126,12 @@ impl MarkdownRenderer {
                     }
                 }
                 Event::Code(code) => {
-                    // 行内代码
                     elements.push(self.create_inline_code_element(&code));
                 }
                 Event::Html(html) => {
-                    // HTML内容
                     current_text.push_str(&html);
                 }
                 Event::Rule => {
-                    // 分割线
                     elements.push(self.create_rule_element());
                 }
                 Event::SoftBreak => {
@@ -151,19 +140,14 @@ impl MarkdownRenderer {
                 Event::HardBreak => {
                     current_text.push('\n');
                 }
-                Event::FootnoteReference(name) => {
-                    // 脚注引用
-                    elements.push(self.create_footnote_element(&name));
-                }
                 Event::TaskListMarker(checked) => {
-                    // 任务列表标记
                     let marker = if checked { "[x] " } else { "[ ] " };
-                    elements.push(self.create_task_marker_element(marker));
+                    current_text.push_str(marker);
                 }
+                _ => {}
             }
         }
 
-        // 处理剩余文本
         if !current_text.is_empty() {
             elements.push(self.create_text_element(&current_text));
         }
@@ -172,106 +156,93 @@ impl MarkdownRenderer {
     }
 
     fn create_text_element(&self, text: &str) -> AnyElement {
-        gpui::TextElement::new(text.to_string().into())
-            .color(gpui::black())
-            .size(gpui::TextSize::Default)
+        div()
+            .child(text(text))
+            .text_color(hsla(0.0, 0.0, 0.0, 1.0))
             .into_any_element()
     }
 
     fn create_paragraph_element(&self, text: &str) -> AnyElement {
         div()
-            .mt_1()
-            .mb_2()
-            .child(self.create_text_element(text))
+            .mt(px(8.0))
+            .mb(px(16.0))
+            .child(text(text))
+            .line_height(relative(1.6))
             .into_any_element()
     }
 
-    fn create_heading_element(&self, text: &str, level: pulldown_cmark::HeadingLevel) -> AnyElement {
-        let (size, margin) = match level {
-            pulldown_cmark::HeadingLevel::H1 => (gpui::TextSize::XXXLarge, 4),
-            pulldown_cmark::HeadingLevel::H2 => (gpui::TextSize::XXLarge, 3),
-            pulldown_cmark::HeadingLevel::H3 => (gpui::TextSize::XLarge, 2),
-            pulldown_cmark::HeadingLevel::H4 => (gpui::TextSize::Large, 2),
-            pulldown_cmark::HeadingLevel::H5 => (gpui::TextSize::Medium, 1),
-            pulldown_cmark::HeadingLevel::H6 => (gpui::TextSize::Small, 1),
+    fn create_heading_element(&self, text: &str, level: HeadingLevel) -> AnyElement {
+        let (size, margin_top, margin_bottom) = match level {
+            HeadingLevel::H1 => (px(32.0), px(24.0), px(16.0)),
+            HeadingLevel::H2 => (px(24.0), px(20.0), px(12.0)),
+            HeadingLevel::H3 => (px(20.0), px(16.0), px(8.0)),
+            HeadingLevel::H4 => (px(18.0), px(12.0), px(6.0)),
+            HeadingLevel::H5 => (px(16.0), px(10.0), px(4.0)),
+            HeadingLevel::H6 => (px(14.0), px(8.0), px(4.0)),
         };
 
-        gpui::TextElement::new(text.to_string().into())
-            .size(size)
-            .mt_2()
-            .mb_1()
+        div()
+            .child(text(text))
+            .text_size(size)
+            .font_weight(FontWeight::BOLD)
+            .mt(margin_top)
+            .mb(margin_bottom)
+            .text_color(hsla(0.0, 0.0, 0.1, 1.0))
             .into_any_element()
     }
 
     fn create_inline_code_element(&self, code: &str) -> AnyElement {
-        gpui::TextElement::new(code.to_string().into())
-            .size(gpui::TextSize::Default)
-            .bg(gpui::rgb(0xf0f0f0))
-            .px_1()
-            .rounded_sm()
+        div()
+            .display(Display::Inline)
+            .child(text(code))
+            .bg(hsla(0.0, 0.0, 0.95, 1.0))
+            .px(px(4.0))
+            .py(px(2.0))
+            .rounded(px(3.0))
+            .font_family("Monaco, Consolas, monospace")
+            .text_size(px(14.0))
             .into_any_element()
     }
 
-    fn create_code_block_element(&self, code: &str) -> AnyElement {
+    fn create_code_block_element(&self, code: &str, _lang: Option<&str>) -> AnyElement {
         div()
             .w_full()
-            .border_1()
-            .border_color(gpui::gray_300())
-            .bg(gpui::rgb(0xf8f8f8))
-            .p_2()
-            .rounded_sm()
-            .child(gpui::TextElement::new(code.to_string().into())
-                .size(gpui::TextSize::Default)
-                .font_family("monospace")
+            .border(px(1.0))
+            .border_color(hsla(0.0, 0.0, 0.8, 1.0))
+            .bg(hsla(0.0, 0.0, 0.05, 1.0))
+            .p(px(16.0))
+            .rounded(px(6.0))
+            .my(px(16.0))
+            .child(
+                div()
+                    .child(text(code))
+                    .font_family("Monaco, Consolas, monospace")
+                    .text_size(px(14.0))
+                    .text_color(hsla(0.0, 0.0, 0.9, 1.0))
+                    .line_height(relative(1.5))
             )
             .into_any_element()
     }
 
     fn create_blockquote_element(&self, text: &str) -> AnyElement {
         div()
-            .border_l_4()
-            .border_color(gpui::gray_400())
-            .pl_3()
-            .ml_2()
-            .child(self.create_text_element(text))
+            .border_l(px(4.0))
+            .border_color(hsla(0.0, 0.0, 0.7, 1.0))
+            .pl(px(16.0))
+            .ml(px(8.0))
+            .my(px(8.0))
+            .child(text(text))
+            .text_color(hsla(0.0, 0.0, 0.5, 1.0))
+            .italic()
             .into_any_element()
     }
 
     fn create_rule_element(&self) -> AnyElement {
         div()
             .w_full()
-            .h_0_5()
-            .bg(gpui::gray_300())
-            .my_3()
+            .h(px(1.0))
+            .bg(hsla(0.0, 0.0, 0.8, 1.0))
+            .my(px(24.0))
             .into_any_element()
-    }
-
-    fn create_footnote_element(&self, name: &str) -> AnyElement {
-        gpui::TextElement::new(format!("[{}]", name).into())
-            .size(gpui::TextSize::Small)
-            .text_color(gpui::blue_500())
-            .into_any_element()
-    }
-
-    fn create_task_marker_element(&self, marker: &str) -> AnyElement {
-        gpui::TextElement::new(marker.into())
-            .size(gpui::TextSize::Default)
-            .text_color(gpui::green_500())
-            .into_any_element()
-    }
-
-    // 辅助函数：提取下一个文本内容
-    fn extract_next_text(&self, parser: &mut std::slice::Iter<Event>) -> String {
-        let mut text = String::new();
-        for event in parser {
-            match event {
-                Event::Text(t) => text.push_str(t),
-                Event::Code(c) => text.push_str(c),
-                Event::SoftBreak => text.push(' '),
-                Event::HardBreak => text.push('\n'),
-                _ => break,
-            }
-        }
-        text
     }
 }

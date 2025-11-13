@@ -1,45 +1,7 @@
 // src/file_manager.rs
 use gpui::*;
-use std::path::Path;
 use tokio::fs;
 use anyhow::Result;
-use std::collections::VecDeque;
-
-// 最近文件管理器
-#[derive(Debug, Clone)]
-pub struct RecentFileManager {
-    recent_files: VecDeque<String>,
-    max_files: usize,
-}
-
-impl RecentFileManager {
-    pub fn new(max_files: usize) -> Self {
-        Self {
-            recent_files: VecDeque::new(),
-            max_files,
-        }
-    }
-
-    pub fn add_file(&mut self, file_path: String) {
-        // 如果文件已经存在，先移除它
-        self.recent_files.retain(|f| f != &file_path);
-        // 将文件添加到列表开头
-        self.recent_files.push_front(file_path);
-        
-        // 限制最近文件数量
-        while self.recent_files.len() > self.max_files {
-            self.recent_files.pop_back();
-        }
-    }
-
-    pub fn get_recent_files(&self) -> Vec<String> {
-        self.recent_files.iter().cloned().collect()
-    }
-
-    pub fn remove_file(&mut self, file_path: &str) {
-        self.recent_files.retain(|f| f != file_path);
-    }
-}
 
 pub struct FileManager;
 
@@ -63,61 +25,76 @@ impl FileManager {
     }
 }
 
-// 实现一个简单的文件对话框模拟（实际应用中会需要原生对话框支持）
-pub struct FileDialog;
-
-impl FileDialog {
-    pub fn show_open_dialog() -> Option<String> {
-        // 这里应该显示原生文件打开对话框
-        // 暂时返回一个模拟路径
-        Some("example.md".to_string())
-    }
-
-    pub fn show_save_dialog() -> Option<String> {
-        // 这里应该显示原生文件保存对话框
-        // 暂时返回一个模拟路径
-        Some("example.md".to_string())
-    }
+pub struct FileListView {
+    recent_files: Vec<String>,
 }
 
-// 文件树视图组件
-pub struct FileTreeView {
-    root_path: String,
-    files: Vec<String>,
-}
-
-impl FileTreeView {
-    pub fn new(root_path: String) -> Self {
+impl FileListView {
+    pub fn new() -> Self {
         Self {
-            files: vec![],
-            root_path,
+            recent_files: vec![
+                "示例文档.md".to_string(),
+                "项目说明.md".to_string(),
+                "使用指南.md".to_string(),
+            ],
         }
     }
 
-    pub fn load_directory(&mut self) {
-        // 加载目录中的文件
-        // 实际实现中需要使用 tokio::fs::read_dir
+    pub fn add_recent_file(&mut self, file_path: String) {
+        self.recent_files.retain(|f| f != &file_path);
+        self.recent_files.insert(0, file_path);
+        
+        if self.recent_files.len() > 20 {
+            self.recent_files.truncate(20);
+        }
+    }
+
+    pub fn render_content(&self) -> Vec<AnyElement> {
+        self.recent_files.iter().map(|file| {
+            let file_path = file.clone();
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .p(px(8.0))
+                .rounded(px(6.0))
+                .hover(|style| style.bg(hsla(0.0, 0.0, 0.95, 1.0)))
+                .cursor_pointer()
+                .child(
+                    div()
+                        .child(text("📄"))
+                        .text_size(px(16.0))
+                )
+                .child(
+                    div()
+                        .child(text(file))
+                        .text_color(hsla(210.0, 0.8, 0.5, 1.0))
+                )
+                .into_any_element()
+        }).collect()
     }
 }
 
-impl Render for FileTreeView {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+impl Render for FileListView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .w_64()
-            .h_full()
-            .bg(gpui::gray_100())
-            .p_3()
+            .size_full()
+            .p(px(12.0))
+            .flex()
+            .flex_col()
             .child(
                 div()
-                    .text_lg()
-                    .font_bold()
-                    .mb_3()
-                    .child(Label::new("Files"))
+                    .child(text("最近文件"))
+                    .text_size(px(16.0))
+                    .font_weight(FontWeight::BOLD)
+                    .mb(px(12.0))
             )
             .child(
                 div()
-                    .w_full()
-                    .child(Label::new("No files loaded"))
+                    .flex()
+                    .flex_col()
+                    .gap(px(4.0))
+                    .children(self.render_content())
             )
     }
 }

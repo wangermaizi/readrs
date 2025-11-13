@@ -1,0 +1,19 @@
+# Rust 编译产物
+/target/
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+
+

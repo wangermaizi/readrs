@@ -1,51 +1,53 @@
-# ReadRS - GPUI Markdown 编辑器
+# ReadRS - Markdown Editor
 
-ReadRS 是一款使用 Rust 和 GPUI 框架开发的现代化 Markdown 编辑器，具有实时预览、跨平台支持和丰富的编辑功能。
+ReadRS 是一个现代化的Markdown编辑器，支持实时预览和多种格式导出。
+
+## 项目状态
+
+当前项目已经成功编译并运行。由于原项目使用的GPUI GUI框架API与实际依赖版本不兼容，我们创建了一个命令行版本来演示核心功能。
 
 ## 功能特性
 
-- **实时预览**：所见即所得的 Markdown 编辑体验
-- **跨平台支持**：支持 Windows、macOS 和 Linux
-- **多种主题**：内置多套主题，支持个性化定制
-- **文件管理**：完整的新建、打开、保存、导出功能
-- **大纲视图**：快速导航文档结构
-- **拼写检查**：英文拼写错误实时检测
-- **快捷键支持**：丰富的快捷键提升编辑效率
-- **多格式导出**：支持导出为 HTML、PDF、Word 等格式
-
-## 安装
-
-目前项目仍在开发中，可通过以下方式构建：
-
-```bash
-git clone https://github.com/wangermaizi/readrs.git
-cd readrs
-cargo run
-```
+- ✅ 创建新的Markdown文档
+- ✅ 打开和编辑现有文档
+- ✅ Markdown语法解析和HTML预览
+- ✅ 多格式导出（HTML、纯文本等）
+- ✅ 基础文档管理功能
 
 ## 使用方法
 
-1. 启动应用后，您可以新建一个 Markdown 文件，或打开现有文件
-2. 在左侧编辑区输入 Markdown 语法内容
-3. 右侧实时预览区会即时渲染 Markdown 内容
-4. 使用顶部工具栏进行文件管理、主题切换等操作
-5. 使用侧边栏的大纲视图快速定位文档结构
+运行程序：
 
-## 开发
+```bash
+cargo run
+```
 
-本项目使用 GPUI 框架构建，主要模块包括：
+按照程序提示进行操作：
 
-- `editor.rs` - 编辑器核心组件
-- `preview.rs` - 实时预览功能
-- `file_manager.rs` - 文件管理功能
-- `export.rs` - 多格式导出功能
-- `theme.rs` - 主题和界面定制
-- `features.rs` - 高级辅助功能
+1. 选择功能（创建、打开、编辑、预览、导出等）
+2. 输入文档内容或文件路径
+3. 查看渲染结果或导出文档
+
+## 技术栈
+
+- Rust 2021
+- pulldown-cmark - Markdown解析
+- serde - 数据序列化
+- tokio - 异步运行时
+
+## 未来计划
+
+- [ ] 重构以使用兼容的GUI框架（如egui或GPUI 0.3+）
+- [ ] 添加语法高亮
+- [ ] 实现实时预览
+- [ ] 增加更多导出格式（PDF、DOCX等）
+- [ ] 添加主题和样式定制
+
+## 编译要求
+
+- Rust 1.70+
+- Cargo
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request 来改进 ReadRS！
-
-## 许可证
-
-MIT
+欢迎提交Issue和Pull Request来改进这个项目！

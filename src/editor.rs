@@ -1,81 +1,69 @@
 // src/editor.rs
 use gpui::*;
-use std::sync::Arc;
-
-#[derive(Debug, Clone)]
-pub struct EditorEvent {
-    pub text: SharedString,
-}
 
 pub struct MarkdownEditor {
     text: SharedString,
-    cursor_pos: usize,
 }
 
 impl MarkdownEditor {
-    pub fn new(text: SharedString, cx: &mut ViewContext<Self>) -> Self {
-        cx.subscribe(&cx.window_handle(), Self::handle_window_events).detach();
+    pub fn new() -> Self {
         Self {
-            text,
-            cursor_pos: 0,
+            text: String::new().into(),
         }
     }
 
-    fn handle_window_events(
-        &mut self,
-        _window: View<MainWindow>,
-        event: &EditorEvent,
-        _cx: &mut ViewContext<Self>,
-    ) {
-        self.text = event.text.clone();
+    pub fn set_text(&mut self, text: String) {
+        self.text = text.into();
+    }
+
+    pub fn get_text(&self) -> SharedString {
+        self.text.clone()
+    }
+
+    pub fn update_text(&mut self, text: SharedString) {
+        self.text = text;
     }
 }
 
 impl Render for MarkdownEditor {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = Theme::default();
+        
         div()
             .size_full()
-            .p_4()
-            .bg(gpui::white())
+            .p(px(16.0))
+            .bg(theme.editor_bg)
             .child(
                 div()
                     .size_full()
-                    .border_1()
-                    .border_color(gpui::gray_300())
-                    .p_3()
+                    .border(px(1.0))
+                    .border_color(theme.border)
+                    .rounded(px(6.0))
+                    .p(px(12.0))
+                    .bg(theme.editor_bg)
                     .child(
-                        gpui::TextElement::new(self.text.clone())
-                            .color(gpui::black())
-                            .size(gpui::TextSize::Medium)
+                        text(self.text.clone())
+                            .font_family("Monaco, Consolas, monospace")
+                            .text_size(px(14.0))
+                            .line_height(relative(1.5))
+                            .w_full()
+                            .h_full()
                     )
-                    .on_mouse_down(MouseButton::Left, |_, cx| {
-                        cx.focus_self();
-                    })
-                    .on_key_event("Backspace", |_, _, cx| {
-                        // 简单的删除逻辑
-                        let mut text: String = cx.view().read(cx).text.to_string();
-                        if text.len() > 0 {
-                            text.pop();
-                            cx.emit(EditorEvent {
-                                text: text.into()
-                            });
-                        }
-                    })
-                    .on_key_event("a", Modifiers::command(), |_, _, cx| {
-                        // 全选
-                        cx.propagate();
-                    })
-            )
-            .child(
-                div()
-                    .mt_2()
-                    .text_xs()
-                    .text_color(gpui::gray_500())
-                    .child(Label::new("Markdown Editor - Type markdown syntax here"))
             )
     }
 }
 
-// 为了使代码能编译，添加缺少的引用
-use crate::MainWindow;
-use gpui::Label;
+// 临时主题定义，后续会从theme模块导入
+struct Theme {
+    editor_bg: Hsla,
+    border: Hsla,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            editor_bg: hsla(0.0, 0.0, 1.0, 1.0), // 白色
+            border: hsla(0.0, 0.0, 0.8, 1.0), // 浅灰
+        }
+    }
+}
