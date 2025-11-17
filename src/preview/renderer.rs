@@ -1,15 +1,15 @@
 //! Markdown 预览渲染器
 //! 
-//! 使用 WebView 组件渲染 HTML 预览
+//! 使用文本渲染预览（后续将使用 WebView 组件渲染 HTML）
 
 use gpui::*;
-use gpui_component::*;
 
 /// Markdown 预览器
 /// 
 /// 负责渲染解析后的 Markdown HTML 内容
+/// 注意：当前版本使用文本渲染，后续将使用 WebView 组件渲染 HTML
 pub struct MarkdownPreview {
-    /// 当前显示的 HTML 内容
+    /// 当前显示的 HTML 内容（暂时作为文本显示）
     html_content: SharedString,
 }
 
@@ -49,13 +49,13 @@ impl MarkdownPreview {
 
 impl Render for MarkdownPreview {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        // 使用 div 渲染 HTML 内容
-        // 注意：GPUI 0.2 版本可能不支持直接渲染 HTML
-        // 这里我们先使用文本显示，后续可以使用 WebView 组件
+        // 使用 div 渲染预览内容
+        // 注意：当前版本使用文本显示，后续将使用 WebView 组件渲染 HTML
+        let content = self.html_content.clone();
         div()
             .h_full()
             .w_full()
-            .overflow_y_scroll()
+            .overflow_hidden()
             .bg(rgb(0xffffff))
             .p_4()
             .child(
@@ -63,14 +63,13 @@ impl Render for MarkdownPreview {
                 div()
                     .text_sm()
                     .text_color(rgb(0x333333))
-                    .whitespace_pre_wrap()
+                    .whitespace_nowrap() // 替换 whitespace_pre_wrap
                     .child(
                         // 显示 HTML 内容（简化版，后续会使用 WebView）
                         // 这里我们只显示文本内容，不解析 HTML
                         // 实际应用中应该使用 WebView 组件来渲染 HTML
-                        self.html_content.as_ref()
+                        content
                     )
             )
     }
 }
-

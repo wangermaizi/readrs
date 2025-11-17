@@ -3,7 +3,7 @@
 //! 使用 gpui-component 的 Input 组件实现多行文本编辑器
 
 use gpui::*;
-use gpui_component::{input::*, *};
+use gpui_component::input::{InputState, Input};
 
 /// 文本编辑器视图
 /// 
@@ -46,20 +46,9 @@ impl TextEditor {
         });
     }
 
-    /// 订阅输入变化事件
-    /// 
-    /// 当用户输入内容时，会触发回调函数
-    pub fn subscribe_changes<F>(&self, window: &mut Window, cx: &mut Context<Self>, callback: F)
-    where
-        F: Fn(SharedString, &mut Window, &mut Context<Self>) + 'static,
-    {
-        let callback = Box::new(callback);
-        cx.subscribe_in(&self.input_state, window, move |_view, state, event, window, cx| {
-            if let InputEvent::Change = event {
-                let content = state.read(cx).value();
-                callback(content, window, cx);
-            }
-        });
+    /// 获取输入状态的实体引用，用于订阅变化事件
+    pub fn input_state(&self) -> Entity<InputState> {
+        self.input_state.clone()
     }
 }
 
@@ -71,4 +60,3 @@ impl Render for TextEditor {
             .w_full()  // 占据全部可用宽度
     }
 }
-

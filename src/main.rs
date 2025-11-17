@@ -37,10 +37,10 @@ impl MainWindow {
         let editor = cx.new(|cx| TextEditor::new(window, cx));
 
         // 创建预览器
-        let preview = cx.new(|cx| MarkdownPreview::new());
+        let preview = cx.new(|_cx| MarkdownPreview::new());
 
         // 初始化默认内容
-        let default_content = r#"# 欢迎使用 ReadRS
+        let default_content: SharedString = r#"# 欢迎使用 ReadRS
 
 这是一个现代化的 Markdown 编辑器。
 
@@ -122,16 +122,22 @@ fn main() {
     /// 当编辑器内容变化时，自动更新预览
     fn setup_realtime_preview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let preview = self.preview.clone();
+        let input_state = self.editor.read(cx).input_state();
         
-        self.editor.update(cx, |editor, cx| {
-            editor.subscribe_changes(window, cx, move |content, _window, _cx| {
+        // 订阅输入状态的变化事件
+        cx.subscribe_in(&input_state, window, move |_view, state, event, _window, cx| {
+            use gpui_component::input::InputEvent as ComponentInputEvent;
+            if let ComponentInputEvent::Change = event {
+                let content = state.read(cx).value();
                 // 解析 Markdown 并更新预览
                 let html = MarkdownParser::parse_with_styles(&content);
                 preview.update(cx, |preview, _cx| {
                     preview.update_html(html);
                 });
-            });
-        });
+                cx.notify();
+            }
+        })
+        .detach();
     }
 
     /// 更新预览内容
