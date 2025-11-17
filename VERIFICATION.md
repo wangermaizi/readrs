@@ -8,9 +8,9 @@
 ## 核心功能实现情况
 
 ### 1. 实时预览与渲染
-- [x] Markdown语法解析 (pulldown-cmark)
-- [x] 实时渲染器实现 (renderer.rs)
-- [x] 预览组件 (preview.rs)
+- [x] Markdown语法解析
+- [x] 实时渲染器实现
+- [x] 预览组件
 - [x] 语法高亮显示
 
 ### 2. 文本编辑与Markdown语法支持
@@ -20,28 +20,28 @@
 - [x] 高级内容：LaTeX数学公式、脚注、目录
 
 ### 3. 文件管理功能
-- [x] 新建Markdown文件 (file_manager.rs)
-- [x] 打开本地文件 (file_manager.rs)
-- [x] 保存/另存为功能 (file_manager.rs)
+- [x] 新建Markdown文件
+- [x] 打开本地文件
+- [x] 保存/另存为功能
 - [x] 自动保存功能（框架已实现）
 
 ### 4. 导出与分享功能
-- [x] HTML导出功能 (export.rs)
+- [x] HTML导出功能
 - [x] PDF导出功能（框架已实现）
 - [x] Word导出功能（框架已实现）
 - [x] 图片导出功能（框架已实现）
 
 ### 5. 界面定制与个性化
-- [x] 主题切换功能 (theme.rs)
+- [x] 主题切换功能
 - [x] 多套预设主题（明亮、暗黑、Solarized）
 - [x] 字体与字号调整（框架已实现）
 - [x] 窗口布局（单窗口、侧边栏）
 
 ### 6. 高级辅助功能
-- [x] 拼写检查功能 (features.rs)
-- [x] 大纲视图 (features.rs)
-- [x] 快捷键支持 (features.rs)
-- [x] 搜索功能 (features.rs)
+- [x] 拼写检查功能
+- [x] 大纲视图
+- [x] 快捷键支持
+- [x] 搜索功能
 
 ## 代码结构
 - [x] 模块化设计：editor, preview, renderer, file_manager, export, theme, features

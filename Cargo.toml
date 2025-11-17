@@ -2,15 +2,60 @@
 name = "readrs"
 version = "0.1.0"
 edition = "2021"
+authors = ["ReadRS Team"]
+description = "一个类 Typora 的所见即所得 Markdown 编辑器"
+license = "MIT"
 
 [dependencies]
-gpui = "0.2.2"
+# GPUI 核心框架 - GPU 加速 UI 框架
+# 注意：gpui-component 依赖 crates.io 上的 gpui，所以我们也使用相同版本
+gpui = "0.2"
+
+# GPUI Component UI 组件库
+gpui-component = { git = "https://github.com/longbridge/gpui-component", branch = "main" }
+
+# Markdown 解析库 - 支持 CommonMark 标准和扩展语法
 pulldown-cmark = "0.11"
-pulldown-cmark-to-cmark = "13.0"
-regex = "1.0"
+
+# LaTeX 数学公式渲染
+katex-rs = "0.1"
+
+# Mermaid 流程图渲染（后续阶段使用）
+# mermaid-rs = "0.1"  # 暂时注释，等待后续阶段集成
+
+# 文件操作 - 异步文件系统操作
+walkdir = "2.4"
+tokio = { version = "1.40", features = ["full"] }
+
+# PDF 导出（后续阶段使用）
+# pdf-writer = "0.9"  # 暂时注释，等待后续阶段集成
+
+# Word 导出（后续阶段使用）
+# docx-rs = "0.5"  # 暂时注释，等待后续阶段集成
+
+# 代码语法高亮（后续阶段使用）
+# syntect = "5.3"  # 暂时注释，等待后续阶段集成
+
+# 错误处理
+thiserror = "1.0"
+anyhow = "1.0"
+
+# 序列化支持
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-anyhow = "1.0"
+
+# 异步运行时
 futures = "0.3"
-tokio = { version = "1.0", features = ["full"] }
+
+# UUID 生成（用于文件标识等）
 uuid = { version = "1.0", features = ["v4"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true

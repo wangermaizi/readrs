@@ -1,378 +1,249 @@
-// src/main.rs
+//! ReadRS - 类 Typora 的所见即所得 Markdown 编辑器
+//! 
+//! 阶段 2：核心功能 - Markdown 实时预览基础版
+//! 
+//! 本文件实现了：
+//! - 编辑区 + 预览区左右分栏布局
+//! - Markdown 实时预览功能
+//! - 基础文本编辑功能
+
 use gpui::*;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use gpui_component::*;
 
 mod editor;
+mod markdown;
 mod preview;
-mod file_manager;
-mod export;
-mod theme;
-mod features;
-mod renderer;
 
-use editor::MarkdownEditor;
+use editor::TextEditor;
+use markdown::MarkdownParser;
 use preview::MarkdownPreview;
-use file_manager::FileListView;
-use features::OutlineView;
-use theme::ThemeManager;
 
-// 应用状态
-#[derive(Clone)]
-struct AppState {
-    text: SharedString,
-    current_file_path: Option<SharedString>,
-    theme_manager: Arc<Mutex<ThemeManager>>,
-    view_mode: ViewMode,
-    active_sidebar_tab: SidebarTab,
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            text: "# 欢迎使用 ReadRS\n\n这是一个现代化的 Markdown 编辑器。\n\n## 功能特性\n\n- **实时预览** - 编辑时即时查看渲染效果\n- **多格式导出** - 支持导出为 HTML、PDF、DOCX 等格式\n- **主题切换** - 提供多种界面主题\n- **大纲视图** - 快速导航文档结构\n\n## 示例内容\n\n这是一些示例内容：\n\n- 项目1\n- 项目2\n- 项目3\n\n> 这是一个引用块\n\n`行内代码` 和代码块：\n\n```rust\nfn main() {\n    println!(\"Hello, world!\");\n}\n```".into(),
-            current_file_path: None,
-            theme_manager: Arc::new(Mutex::new(ThemeManager::new())),
-            view_mode: ViewMode::Dual,
-            active_sidebar_tab: SidebarTab::Files,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ViewMode {
-    Preview,
-    Edit,
-    Dual,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SidebarTab {
-    Files,
-    Outline,
-}
-
-// 主窗口视图
-struct MainWindow {
-    state: AppState,
-    editor: MarkdownEditor,
-    preview: MarkdownPreview,
-    outline: OutlineView,
-    file_list: FileListView,
+/// 主窗口视图
+/// 
+/// 包含编辑区和预览区，实现左右分栏布局
+pub struct MainWindow {
+    /// 文本编辑器
+    editor: Entity<TextEditor>,
+    /// Markdown 预览器
+    preview: Entity<MarkdownPreview>,
+    /// 当前 Markdown 内容
+    markdown_content: SharedString,
 }
 
 impl MainWindow {
-    fn new(_cx: &mut Window) -> Self {
-        let mut editor = MarkdownEditor::new();
-        let mut preview = MarkdownPreview::new();
-        let mut outline = OutlineView::new();
-        let file_list = FileListView::new();
-        
-        // 初始化编辑器文本
-        let initial_text = AppState::default().text.clone();
-        editor.set_text(initial_text.to_string());
-        preview.update_text(initial_text.clone());
-        outline.update_from_markdown(&initial_text);
-        
-        Self {
-            state: AppState::default(),
+    /// 创建新的主窗口
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        // 创建编辑器
+        let editor = cx.new(|cx| TextEditor::new(window, cx));
+
+        // 创建预览器
+        let preview = cx.new(|cx| MarkdownPreview::new());
+
+        // 初始化默认内容
+        let default_content = r#"# 欢迎使用 ReadRS
+
+这是一个现代化的 Markdown 编辑器。
+
+## 功能特性
+
+- **实时预览** - 编辑时即时查看渲染效果
+- **多格式导出** - 支持导出为 HTML、PDF、DOCX 等格式
+- **主题切换** - 提供多种界面主题
+- **大纲视图** - 快速导航文档结构
+
+## Markdown 语法示例
+
+### 标题
+
+使用 `#` 创建标题，`#` 的数量表示标题级别。
+
+### 列表
+
+- 无序列表项 1
+- 无序列表项 2
+- 无序列表项 3
+
+1. 有序列表项 1
+2. 有序列表项 2
+3. 有序列表项 3
+
+### 引用
+
+> 这是一个引用块
+> 可以包含多行内容
+
+### 代码
+
+行内代码：`println!("Hello, world!");`
+
+代码块：
+
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+### 强调
+
+**粗体文本** 和 *斜体文本*
+
+### 链接
+
+[ReadRS 项目](https://github.com/readrs/readrs)
+
+---
+
+开始编辑上面的内容，预览将实时更新！
+"#.into();
+
+        let mut main_window = Self {
             editor,
             preview,
-            outline,
-            file_list,
-        }
+            markdown_content: default_content.clone(),
+        };
+
+        // 设置编辑器初始内容
+        main_window.editor.update(cx, |editor, cx| {
+            editor.set_content(default_content.clone(), window, cx);
+        });
+
+        // 订阅编辑器内容变化，实时更新预览
+        main_window.setup_realtime_preview(window, cx);
+
+        // 初始化预览内容
+        main_window.update_preview(&default_content, cx);
+
+        main_window
+    }
+
+    /// 设置实时预览功能
+    /// 
+    /// 当编辑器内容变化时，自动更新预览
+    fn setup_realtime_preview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let preview = self.preview.clone();
+        
+        self.editor.update(cx, |editor, cx| {
+            editor.subscribe_changes(window, cx, move |content, _window, _cx| {
+                // 解析 Markdown 并更新预览
+                let html = MarkdownParser::parse_with_styles(&content);
+                preview.update(cx, |preview, _cx| {
+                    preview.update_html(html);
+                });
+            });
+        });
+    }
+
+    /// 更新预览内容
+    fn update_preview(&mut self, markdown: &str, cx: &mut Context<Self>) {
+        let html = MarkdownParser::parse_with_styles(markdown);
+        self.preview.update(cx, |preview, _cx| {
+            preview.update_html(html);
+        });
     }
 }
 
 impl Render for MainWindow {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = self.state.theme_manager.blocking_lock().current_theme();
-        let view_mode = self.state.view_mode;
-        let active_tab = self.state.active_sidebar_tab;
-        
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        // 创建左右分栏布局
         div()
-            .size_full()
-            .bg(theme.background)
-            .text_color(theme.text)
+            .h_full()
+            .w_full()
             .flex()
-            .flex_col()
+            .bg(rgb(0xf5f5f5))
             .child(
-                // 工具栏
+                // 左侧编辑区
                 div()
-                    .w_full()
-                    .px(px(16.0))
-                    .py(px(8.0))
-                    .bg(theme.primary)
-                    .flex()
-                    .items_center()
-                    .justify_between()
+                    .w_1_2()  // 占据 50% 宽度
+                    .h_full()
+                    .border_r(px(1.0))
+                    .border_color(rgb(0xdddddd))
+                    .bg(rgb(0xffffff))
+                    .p_2()
                     .child(
+                        // 编辑器标题
                         div()
-                            .flex()
-                            .gap(px(8.0))
-                            .child(
-                                self.create_button("新建", move |this: &mut Self, _, _| {
-                                    this.handle_new_file();
-                                })
-                            )
-                            .child(
-                                self.create_button("打开", move |this: &mut Self, _, _| {
-                                    this.handle_open_file();
-                                })
-                            )
-                            .child(
-                                self.create_button("保存", move |this: &mut Self, _, _| {
-                                    this.handle_save_file();
-                                })
-                            )
-                            .child(
-                                self.create_button("导出", move |this: &mut Self, _, _| {
-                                    this.handle_export_file();
-                                })
-                            )
+                            .text_sm()
+                            .text_color(rgb(0x666666))
+                            .mb_2()
+                            .child("编辑器")
                     )
                     .child(
-                        div()
-                            .flex()
-                            .gap(px(8.0))
-                            .child(
-                                self.create_view_mode_button("阅读模式", ViewMode::Preview, view_mode, move |this: &mut Self, _, _| {
-                                    this.switch_view_mode(ViewMode::Preview);
-                                })
-                            )
-                            .child(
-                                self.create_view_mode_button("编辑模式", ViewMode::Edit, view_mode, move |this: &mut Self, _, _| {
-                                    this.switch_view_mode(ViewMode::Edit);
-                                })
-                            )
-                            .child(
-                                self.create_view_mode_button("所见即所得", ViewMode::Dual, view_mode, move |this: &mut Self, _, _| {
-                                    this.switch_view_mode(ViewMode::Dual);
-                                })
-                            )
-                            .child(
-                                self.create_button("主题", move |this: &mut Self, _, _| {
-                                    this.handle_toggle_theme();
-                                })
-                            )
-                            .child(
-                                self.create_button("搜索", move |_: &mut Self, _, _| {
-                                    // TODO: 实现搜索功能
-                                })
-                            )
-                    )
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .child(
-                        // 侧边栏
-                        div()
-                            .w(px(256.0))
-                            .h_full()
-                            .border_r(px(1.0))
-                            .border_color(theme.border)
-                            .bg(theme.sidebar_bg)
-                            .flex()
-                            .flex_col()
-                            .child(
-                                div()
-                                    .w_full()
-                                    .border_b(px(1.0))
-                                    .border_color(theme.border)
-                                    .flex()
-                                    .child(
-                                        self.create_tab_button("文件", SidebarTab::Files, active_tab, theme.clone(), move |this: &mut Self, _, _| {
-                                            this.switch_sidebar_tab(SidebarTab::Files);
-                                        })
-                                    )
-                                    .child(
-                                        self.create_tab_button("大纲", SidebarTab::Outline, active_tab, theme.clone(), move |this: &mut Self, _, _| {
-                                            this.switch_sidebar_tab(SidebarTab::Outline);
-                                        })
-                                    )
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .overflow_y_scroll()
-                                    .when(active_tab == SidebarTab::Files, |this| {
-                                        this.child(self.file_list.render(window, &mut Context::new()))
-                                    })
-                                    .when(active_tab == SidebarTab::Outline, |this| {
-                                        this.child(self.outline.render(window, &mut Context::new()))
-                                    })
-                            )
-                    )
-                    .child(
-                        // 主编辑区
+                        // 文本编辑器组件
                         div()
                             .flex_1()
-                            .h_full()
-                            .flex()
-                            .when(view_mode == ViewMode::Edit, |this| {
-                                this.child(
-                                    div()
-                                        .w_full()
-                                        .h_full()
-                                        .child(self.editor.render(window, &mut Context::new()))
-                                )
-                            })
-                            .when(view_mode == ViewMode::Preview, |this| {
-                                this.child(
-                                    div()
-                                        .w_full()
-                                        .h_full()
-                                        .child(self.preview.render(window, &mut Context::new()))
-                                )
-                            })
-                            .when(view_mode == ViewMode::Dual, |this| {
-                                this.child(
-                                    div()
-                                        .w_1_2()
-                                        .h_full()
-                                        .border_r(px(1.0))
-                                        .border_color(theme.border)
-                                        .child(self.editor.render(window, &mut Context::new()))
-                                )
-                                .child(
-                                    div()
-                                        .w_1_2()
-                                        .h_full()
-                                        .child(self.preview.render(window, &mut Context::new()))
-                                )
-                            })
+                            .overflow_hidden()
+                            .child(self.editor.clone())
+                    )
+            )
+            .child(
+                // 右侧预览区
+                div()
+                    .w_1_2()  // 占据 50% 宽度
+                    .h_full()
+                    .bg(rgb(0xffffff))
+                    .p_2()
+                    .child(
+                        // 预览区标题
+                        div()
+                            .text_sm()
+                            .text_color(rgb(0x666666))
+                            .mb_2()
+                            .child("预览")
+                    )
+                    .child(
+                        // Markdown 预览组件
+                        div()
+                            .flex_1()
+                            .overflow_hidden()
+                            .child(self.preview.clone())
                     )
             )
     }
 }
 
-impl MainWindow {
-    fn create_button<F>(&self, label: &str, on_click: F) -> impl IntoElement 
-    where
-        F: Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
-    {
-        div()
-            .px(px(12.0))
-            .py(px(6.0))
-            .bg(hsla(0.0, 0.0, 1.0, 0.2))
-            .rounded(px(6.0))
-            .cursor_pointer()
-            .child(text(label))
-            .text_color(hsla(0.0, 0.0, 1.0, 1.0))
-    }
-
-    fn create_view_mode_button<F>(&self, label: &str, mode: ViewMode, current_mode: ViewMode, on_click: F) -> impl IntoElement 
-    where
-        F: Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
-    {
-        let is_selected = mode == current_mode;
-        div()
-            .px(px(8.0))
-            .py(px(4.0))
-            .bg(if is_selected { hsla(0.0, 0.0, 1.0, 0.3) } else { hsla(0.0, 0.0, 1.0, 0.2) })
-            .rounded(px(4.0))
-            .cursor_pointer()
-            .child(text(label))
-            .text_color(hsla(0.0, 0.0, 1.0, 1.0))
-            .font_weight(if is_selected { FontWeight::BOLD } else { FontWeight::NORMAL })
-    }
-
-    fn create_tab_button<F>(&self, label: &str, tab: SidebarTab, active_tab: SidebarTab, theme: crate::theme::Theme, on_click: F) -> impl IntoElement 
-    where
-        F: Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
-    {
-        let is_selected = tab == active_tab;
-        div()
-            .flex_1()
-            .px(px(12.0))
-            .py(px(12.0))
-            .bg(if is_selected { theme.sidebar_bg } else { theme.tab_inactive_bg })
-            .text_center()
-            .cursor_pointer()
-            .child(text(label))
-            .text_color(theme.text)
-            .font_weight(if is_selected { FontWeight::BOLD } else { FontWeight::NORMAL })
-    }
-
-    fn handle_new_file(&mut self) {
-        self.state.text = String::new().into();
-        self.state.current_file_path = None;
-        self.editor.set_text(String::new());
-        self.preview.update_text(String::new().into());
-        self.outline.update_from_markdown("");
-    }
-
-    fn handle_open_file(&mut self) {
-        // TODO: 实现文件打开对话框
-        let content = "# 新打开的文档\n\n这是从文件加载的内容。".to_string();
-        self.state.text = content.clone().into();
-        self.state.current_file_path = Some("example.md".into());
-        self.editor.set_text(content.clone());
-        self.preview.update_text(content.clone().into());
-        self.outline.update_from_markdown(&content);
-    }
-
-    fn handle_save_file(&mut self) {
-        let text = self.state.text.to_string();
-        let path = self.state.current_file_path.clone();
-        
-        // 异步保存文件
-        if let Some(path) = path {
-            let path_str = path.to_string();
-            tokio::spawn(async move {
-                if let Err(e) = file_manager::FileManager::save_file(&path_str, &text).await {
-                    eprintln!("保存文件失败: {}", e);
-                }
-            });
-        } else {
-            eprintln!("请先选择保存位置");
-        }
-    }
-
-    fn handle_export_file(&mut self) {
-        let text = self.state.text.to_string();
-        
-        tokio::spawn(async move {
-            if let Err(e) = export::Exporter::export_to_html(&text, "output.html").await {
-                eprintln!("导出失败: {}", e);
-            }
-        });
-    }
-
-    fn handle_toggle_theme(&mut self) {
-        self.state.theme_manager.blocking_lock().next_theme();
-    }
-
-    fn switch_view_mode(&mut self, mode: ViewMode) {
-        self.state.view_mode = mode;
-    }
-
-    fn switch_sidebar_tab(&mut self, tab: SidebarTab) {
-        self.state.active_sidebar_tab = tab;
-    }
-}
-
+/// 应用程序入口点
 fn main() {
-    App::new(|_app, _cx| {
-        // App初始化
-    })
-    .run(|app: &mut App, cx: &mut AppContext| {
-        cx.open_window(
-            WindowOptions {
-                titlebar: Some(TitlebarOptions {
-                    title: Some("ReadRS - Markdown 编辑器".into()),
+    // 创建 GPUI 应用实例
+    let app = Application::new();
+
+    // 运行应用
+    app.run(move |cx| {
+        // 重要：必须在任何 gpui-component 功能使用之前调用初始化
+        gpui_component::init(cx);
+
+        // 异步创建窗口
+        cx.spawn(async move |cx| {
+            // 打开窗口，配置窗口选项
+            cx.open_window(
+                WindowOptions {
+                    // 窗口标题
+                    titlebar: Some(TitlebarOptions {
+                        title: Some("ReadRS - Markdown 编辑器".into()),
+                        ..Default::default()
+                    }),
+                    // 窗口初始大小和位置
+                    window_bounds: Some(WindowBounds::Windowed(
+                        Bounds::new(
+                            Point::new(px(100.0), px(100.0)),  // 初始位置
+                            gpui::Size::new(px(1400.0), px(900.0))  // 初始大小：1400x900（更大的窗口以容纳分栏）
+                        )
+                    )),
+                    // 窗口默认聚焦
+                    focus: true,
                     ..Default::default()
-                }),
-                window_bounds: Some(WindowBounds::Windowed(
-                    Bounds::new(Point::new(px(100.0), px(100.0)), Size::new(px(1200.0), px(800.0)))
-                )),
-                ..Default::default()
-            },
-            |window, _cx| {
-                MainWindow::new(window)
-            },
-        );
+                },
+                |window, cx| {
+                    // 创建主窗口视图
+                    let view = cx.new(|cx| MainWindow::new(window, cx));
+                    
+                    // 重要：窗口的第一层必须是 Root 组件
+                    cx.new(|cx| Root::new(view, window, cx))
+                },
+            )?;
+
+            Ok::<_, anyhow::Error>(())
+        })
+        .detach();
     });
 }
