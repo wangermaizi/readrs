@@ -5,6 +5,7 @@
 //! - 实时更新预览内容
 
 mod renderer;
+mod html_renderer;
 
 pub use renderer::*;
 

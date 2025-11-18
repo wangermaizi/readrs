@@ -39,80 +39,14 @@ impl MainWindow {
         // 创建预览器
         let preview = cx.new(|_cx| MarkdownPreview::new());
 
-        // 初始化默认内容
-        let default_content: SharedString = r#"# 欢迎使用 ReadRS
-
-这是一个现代化的 Markdown 编辑器。
-
-## 功能特性
-
-- **实时预览** - 编辑时即时查看渲染效果
-- **多格式导出** - 支持导出为 HTML、PDF、DOCX 等格式
-- **主题切换** - 提供多种界面主题
-- **大纲视图** - 快速导航文档结构
-
-## Markdown 语法示例
-
-### 标题
-
-使用 `#` 创建标题，`#` 的数量表示标题级别。
-
-### 列表
-
-- 无序列表项 1
-- 无序列表项 2
-- 无序列表项 3
-
-1. 有序列表项 1
-2. 有序列表项 2
-3. 有序列表项 3
-
-### 引用
-
-> 这是一个引用块
-> 可以包含多行内容
-
-### 代码
-
-行内代码：`println!("Hello, world!");`
-
-代码块：
-
-```rust
-fn main() {
-    println!("Hello, world!");
-}
-```
-
-### 强调
-
-**粗体文本** 和 *斜体文本*
-
-### 链接
-
-[ReadRS 项目](https://github.com/readrs/readrs)
-
----
-
-开始编辑上面的内容，预览将实时更新！
-"#.into();
-
         let mut main_window = Self {
-            editor,
-            preview,
-            markdown_content: default_content.clone(),
+            editor: editor.clone(),
+            preview: preview.clone(),
+            markdown_content: SharedString::default(),
         };
-
-        // 设置编辑器初始内容
-        main_window.editor.update(cx, |editor, cx| {
-            editor.set_content(default_content.clone(), window, cx);
-        });
 
         // 订阅编辑器内容变化，实时更新预览
         main_window.setup_realtime_preview(window, cx);
-
-        // 初始化预览内容
-        main_window.update_preview(&default_content, cx);
 
         main_window
     }
@@ -129,10 +63,9 @@ fn main() {
             use gpui_component::input::InputEvent as ComponentInputEvent;
             if let ComponentInputEvent::Change = event {
                 let content = state.read(cx).value();
-                // 解析 Markdown 并更新预览
-                let html = MarkdownParser::parse_with_styles(&content);
+                // 直接传递 Markdown 内容到预览器进行渲染
                 preview.update(cx, |preview, _cx| {
-                    preview.update_html(html);
+                    preview.update_html(content.to_string());
                 });
                 cx.notify();
             }

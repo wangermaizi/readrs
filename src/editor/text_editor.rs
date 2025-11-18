@@ -1,7 +1,3 @@
-//! 文本编辑器组件
-//! 
-//! 使用 gpui-component 的 Input 组件实现多行文本编辑器
-
 use gpui::*;
 use gpui_component::input::{InputState, Input};
 
@@ -18,12 +14,11 @@ pub struct TextEditor {
 impl TextEditor {
     /// 创建新的文本编辑器
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
-        // 创建多行输入状态，支持自动增长
+        // 创建多行输入状态，支持自动增长，不设置占位符
         let input_state = cx.new(|cx| {
             InputState::new(window, cx)
                 .multi_line()  // 启用多行模式
                 .auto_grow(10, 50)  // 自动增长，最小 10 行，最大 50 行
-                .placeholder("在这里输入 Markdown 内容...\n\n支持标题、列表、引用、代码块等语法。")
         });
 
         Self {
@@ -41,6 +36,7 @@ impl TextEditor {
     pub fn set_content(&mut self, content: impl Into<SharedString>, window: &mut Window, cx: &mut Context<Self>) {
         let content = content.into();
         self.content = content.clone();
+        // 直接更新输入状态
         self.input_state.update(cx, |state, cx| {
             state.set_value(content.to_string(), window, cx);
         });
