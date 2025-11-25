@@ -17,11 +17,11 @@ gpui-component = { git = "https://github.com/longbridge/gpui-component", branch 
 # Markdown 解析库 - 支持 CommonMark 标准和扩展语法
 pulldown-cmark = "0.11"
 
-# LaTeX 数学公式渲染
-katex-rs = "0.1"
+# LaTeX 数学公式渲染（占位实现，实际渲染需要 JS 引擎）
+# katex = "0.4"  # 在 Windows 上不支持
 
-# Mermaid 流程图渲染（后续阶段使用）
-# mermaid-rs = "0.1"  # 暂时注释，等待后续阶段集成
+# Mermaid 流程图渲染（占位实现，实际渲染需要 JS 引擎）
+# mermaid-rs = "0.1"  # 在 Windows 上可能有问题
 
 # 文件操作 - 异步文件系统操作
 walkdir = "2.4"
@@ -33,10 +33,10 @@ tokio = { version = "1.40", features = ["full"] }
 # Word 导出（后续阶段使用）
 # docx-rs = "0.5"  # 暂时注释，等待后续阶段集成
 
-# 代码语法高亮（后续阶段使用）
-# syntect = "5.3"  # 暂时注释，等待后续阶段集成
+# 代码语法高亮（阶段 3 使用）
+syntect = "5.3"
 
-# 错误处理
+# 工具库
 thiserror = "1.0"
 anyhow = "1.0"
 
@@ -49,6 +49,9 @@ futures = "0.3"
 
 # UUID 生成（用于文件标识等）
 uuid = { version = "1.0", features = ["v4"] }
+
+# 文件对话框
+rfd = "0.14"
 
 [profile.release]
 opt-level = 3
